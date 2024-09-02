@@ -9,17 +9,17 @@ import javax.persistence.NamedQuery;
 import javax.persistence.Table;
 import javax.persistence.Temporal;
 import javax.persistence.TemporalType;
-import mx.com.aeisa.sync.sql.entity.AlmacenSql;
+import mx.com.aeisa.sync.sql.entity.ProductoSql;
 
 /**
- * A AlmacenSql.
+ * A Producto.
  */
 @Entity
-@Table(name = "almacen")
-@NamedQuery(name = "AlmacenMysql.getAll",
-        query = "SELECT a FROM AlmacenMysql a WHERE a.id > 0")
+@Table(name = "producto")
+@NamedQuery(name = "ProductoMysql.getAll",
+        query = "SELECT p FROM ProductoMysql p WHERE p.id > 0")
 @SuppressWarnings("common-java:DuplicatedBlocks")
-public class AlmacenMysql implements Serializable {
+public class ProductoMysql implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
@@ -33,9 +33,6 @@ public class AlmacenMysql implements Serializable {
     @Column(name = "nombre")
     private String nombre;
 
-    @Column(name = "siglas")
-    private String siglas;
-
     @Column(name = "activo")
     private Boolean activo;
 
@@ -43,16 +40,15 @@ public class AlmacenMysql implements Serializable {
     @Temporal(TemporalType.TIMESTAMP)
     private Date fechaModificacion;
 
-    public AlmacenMysql() {
+    public ProductoMysql() {
     }
 
-    public AlmacenMysql(AlmacenSql almacenSql) {
-        this.codigo = almacenSql.getCodigo();
+    public ProductoMysql(ProductoSql productoSql) {
         this.activo = true;
+        this.codigo = productoSql.getCodigo();
         this.fechaModificacion = new Date();
-        this.id = almacenSql.getId();
-        this.nombre = almacenSql.getNombre();
-        this.siglas = almacenSql.getSiglas();
+        this.id = productoSql.getId();
+        this.nombre = productoSql.getNombre();
     }
 
     public Long getId() {
@@ -79,14 +75,6 @@ public class AlmacenMysql implements Serializable {
         this.nombre = nombre;
     }
 
-    public String getSiglas() {
-        return siglas;
-    }
-
-    public void setSiglas(String siglas) {
-        this.siglas = siglas;
-    }
-
     public Boolean getActivo() {
         return activo;
     }
@@ -105,8 +93,7 @@ public class AlmacenMysql implements Serializable {
 
     @Override
     public String toString() {
-        return "{" + "id=" + id + ", codigo=" + codigo + ", nombre=" + nombre + ", siglas=" + siglas
-                + ", activo=" + activo + ", fechaModificacion=" + fechaModificacion + '}';
+        return "{" + "id=" + id + ", codigo=" + codigo + ", nombre=" + nombre + ", activo=" + activo + ", fechaModificacion=" + fechaModificacion + '}';
     }
 
 }

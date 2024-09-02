@@ -4,15 +4,12 @@
  */
 package mx.com.aeisa.sync.timer;
 
-import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.Date;
 import java.util.List;
-import java.util.Properties;
 import java.util.TimerTask;
 import javax.persistence.EntityManager;
 import javax.persistence.EntityManagerFactory;
-import javax.persistence.Persistence;
 import mx.com.aeisa.sync.Util;
 import mx.com.aeisa.sync.mysql.entity.AlmacenMysql;
 import mx.com.aeisa.sync.sql.entity.AlmacenSql;
@@ -66,12 +63,6 @@ public class TimerAlmacenes extends TimerTask {
             instance = new TimerAlmacenes(passwordSql, passwordMySql);
         }
         return instance;
-    }
-
-    private long calcularTiempoEjecucion(ZonedDateTime inicio) {
-        ZonedDateTime fin = ZonedDateTime.now();
-        Duration duration = Duration.between(inicio, fin);
-        return duration.toMillis();
     }
 
     private void buscarAlmacenesSql() {
@@ -152,61 +143,63 @@ public class TimerAlmacenes extends TimerTask {
 
     @Override
     public void run() {
-        ZonedDateTime horaInicio = ZonedDateTime.now();
-        logger.info("Iniciando sincronización de almacenes.");
+        try {
+            ZonedDateTime horaInicio = ZonedDateTime.now();
+            logger.info("Iniciando sincronización de almacenes.");
 
-        ZonedDateTime horaActual = ZonedDateTime.now();
-        buscarAlmacenesSql();
-        logger.info("{} almacenes encontrados en SQL, en {} mss.", almacenesSql.size(), calcularTiempoEjecucion(horaActual));
+            ZonedDateTime horaActual = ZonedDateTime.now();
+            buscarAlmacenesSql();
+            logger.info("{} almacenes encontrados en SQL, en {} mss.", almacenesSql.size(), Util.calcularTiempoEjecucion(horaActual));
 
-        horaActual = ZonedDateTime.now();
-        buscarAlmacenesMysql();
-        logger.info("{} almacenes encontrados en MySQL, en {} mss.", almacenesMysql.size(), calcularTiempoEjecucion(horaActual));
+            horaActual = ZonedDateTime.now();
+            buscarAlmacenesMysql();
+            logger.info("{} almacenes encontrados en MySQL, en {} mss.", almacenesMysql.size(), Util.calcularTiempoEjecucion(horaActual));
 
-        AlmacenMysql almacenMysql;
-        int indexMysql;
-        for (AlmacenSql almacenSql : almacenesSql) {
-            //Buscamos el almacén de SQL en la lista de almacenes de MySQL.
-            indexMysql = findIndex(almacenSql);
+            AlmacenMysql almacenMysql;
+            int indexMysql;
+            for (AlmacenSql almacenSql : almacenesSql) {
+                //Buscamos el almacén de SQL en la lista de almacenes de MySQL.
+                indexMysql = findIndex(almacenSql);
 
-            //Si el almacén no existe en MySQL entonces lo creamos.
-            if (indexMysql == -1) {
-                horaActual = ZonedDateTime.now();
-
-                almacenMysql = new AlmacenMysql(almacenSql);
-                crearAlmacenMysql(almacenMysql);
-
-                logger.info("Almacén insertado en MySQL, {} en {} mss.", almacenMysql, calcularTiempoEjecucion(horaActual));
-            } else {
-                //Si el almacén ya existe, revisamos si es necesario actualizarlo.
-                almacenMysql = procesarDiferencias(indexMysql, almacenSql);
-
-                //Si no es nulo, significa que hubo diferencias, las guardamos.
-                if (almacenMysql != null) {
+                //Si el almacén no existe en MySQL entonces lo creamos.
+                if (indexMysql == -1) {
                     horaActual = ZonedDateTime.now();
 
-                    actualizarAlmacenMysql(almacenMysql);
-                    logger.info("Almacén actualizado en MySQL, {} en {} mss.", almacenMysql, calcularTiempoEjecucion(horaActual));
+                    almacenMysql = new AlmacenMysql(almacenSql);
+                    crearAlmacenMysql(almacenMysql);
+
+                    logger.info("Almacén insertado en MySQL, {} en {} mss.", almacenMysql, Util.calcularTiempoEjecucion(horaActual));
+                } else {
+                    //Si el almacén ya existe, revisamos si es necesario actualizarlo.
+                    almacenMysql = procesarDiferencias(indexMysql, almacenSql);
+
+                    //Si no es nulo, significa que hubo diferencias, las guardamos.
+                    if (almacenMysql != null) {
+                        horaActual = ZonedDateTime.now();
+
+                        actualizarAlmacenMysql(almacenMysql);
+                        logger.info("Almacén actualizado en MySQL, {} en {} mss.", almacenMysql, Util.calcularTiempoEjecucion(horaActual));
+                    }
+                    //Almacén procesado, lo eliminamos de la lista de MySQL
+                    almacenesMysql.remove(indexMysql);
                 }
-                // almacen procesado, lo eliminamos de la lista de MySQL
-                almacenesMysql.remove(indexMysql);
             }
-        }
 
-        // Si hay elementos en la lista de almacenes MySQL, significa que no se encontraron en SQL, ya no existen, los desactivamos.
-        for (AlmacenMysql almacen : almacenesMysql) {
-            if (almacen.getActivo()) {
-                horaActual = ZonedDateTime.now();
+            //Si hay elementos en la lista de almacenes MySQL, ya no existen en SQL, los desactivamos.
+            for (AlmacenMysql almacen : almacenesMysql) {
+                if (almacen.getActivo()) {
+                    horaActual = ZonedDateTime.now();
 
-                almacen.setActivo(Boolean.FALSE);
-                actualizarAlmacenMysql(almacen);
+                    almacen.setActivo(Boolean.FALSE);
+                    actualizarAlmacenMysql(almacen);
 
-                logger.info("Almacén desactivado en MySQL, {} en {} mss.", almacen, calcularTiempoEjecucion(horaActual));
+                    logger.info("Almacén desactivado en MySQL, {} en {} mss.", almacen, Util.calcularTiempoEjecucion(horaActual));
+                }
             }
-        }
 
-        logger.info("Sincronización de almacenes finalizada en {} mss.", calcularTiempoEjecucion(horaInicio));
-        logger.info("--------------------------------------------------------------------------------------------------");
+            logger.info("Sincronización de almacenes finalizada en {} mss.", Util.calcularTiempoEjecucion(horaInicio));
+        } catch (Exception e) {
+            logger.error("Ocurrió un error al sincronizar los almacenes: " + e);
+        }
     }
-
 }

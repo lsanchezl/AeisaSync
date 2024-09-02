@@ -4,6 +4,8 @@
  */
 package mx.com.aeisa.sync;
 
+import java.time.Duration;
+import java.time.ZonedDateTime;
 import java.util.Properties;
 import javax.persistence.EntityManagerFactory;
 import javax.persistence.Persistence;
@@ -36,5 +38,11 @@ public class Util {
         properties.put("javax.persistence.jdbc.password", password);
 
         return Persistence.createEntityManagerFactory("MySQL-PU", properties);
+    }
+
+    public static long calcularTiempoEjecucion(ZonedDateTime inicio) {
+        ZonedDateTime fin = ZonedDateTime.now();
+        Duration duration = Duration.between(inicio, fin);
+        return duration.toMillis();
     }
 }
