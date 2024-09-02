@@ -1,4 +1,4 @@
-package mx.com.aeisa.sync.sql.entity;
+package mx.com.aeisa.sync.entity;
 
 import java.io.Serializable;
 import javax.persistence.Column;

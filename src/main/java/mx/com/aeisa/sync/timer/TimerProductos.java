@@ -4,15 +4,20 @@
  */
 package mx.com.aeisa.sync.timer;
 
+import java.time.LocalDate;
 import java.time.ZonedDateTime;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.TimerTask;
 import javax.persistence.EntityManager;
 import javax.persistence.EntityManagerFactory;
+import javax.persistence.Query;
 import mx.com.aeisa.sync.Util;
-import mx.com.aeisa.sync.mysql.entity.ProductoMysql;
-import mx.com.aeisa.sync.sql.entity.ProductoSql;
+import mx.com.aeisa.sync.entity.ProductoAlmacenMysql;
+import mx.com.aeisa.sync.entity.ProductoMysql;
+import mx.com.aeisa.sync.entity.ProductoSql;
+import mx.com.aeisa.sync.model.ProductoAlmacenSql;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -51,7 +56,9 @@ public class TimerProductos extends TimerTask {
     private final EntityManagerFactory emfMysql;
 
     private List<ProductoSql> productosSql;
+    private List<ProductoAlmacenSql> productosAlmacenSql;
     private List<ProductoMysql> productosMysql;
+    private List<ProductoAlmacenMysql> productosAlmacenMysql;
 
     private TimerProductos(String passwordSql, String passwordMySql) {
         emfSql = Util.getEntityManagerFactorySql(passwordSql);
@@ -71,10 +78,44 @@ public class TimerProductos extends TimerTask {
         productosSql = em.createNamedQuery("ProductoSql.getAll", ProductoSql.class).getResultList();
     }
 
+    private void buscarProductosAlmacenSql() {
+        emfSql.getCache().evictAll();
+
+        int mes = LocalDate.now().getMonth().getValue();
+        mes = 6;
+        Query nativeQuery = emfSql.createEntityManager().createNativeQuery(
+                "SELECT prods.cidproducto,"
+                + " existenciaCosto.cidalmacen,"
+                + " ISNULL((CAST((existenciaCosto.centradasperiodo" + mes
+                + " - existenciaCosto.csalidasperiodo" + mes
+                + ") AS VARCHAR)), '0') existencia"
+                + " FROM adAEISA_COMERCIAL_2022.dbo.admproductos prods"
+                + " JOIN"
+                + " (SELECT Max(cidejercicio) cidejercicio"
+                + " FROM adAEISA_COMERCIAL_2022.dbo.admejercicios) AS ejercicio ON 1 = 1"
+                + " JOIN adAEISA_COMERCIAL_2022.dbo.admexistenciacosto existenciaCosto ON prods.cidproducto = existenciaCosto.cidproducto"
+                + " AND existenciaCosto.cidejercicio = ejercicio.cidejercicio"
+                + " WHERE prods.cstatusproducto = 1"
+                + " ORDER BY prods.ccodigoproducto");
+
+        List<Object[]> productosAlmacenObject = nativeQuery.getResultList();
+        productosAlmacenSql = new ArrayList<>();
+
+        for (Object[] productoAlmacenSql : productosAlmacenObject) {
+            productosAlmacenSql.add(new ProductoAlmacenSql(productoAlmacenSql));
+        }
+    }
+
     private void buscarProductosMysql() {
         emfMysql.getCache().evictAll();
         EntityManager em = emfMysql.createEntityManager();
         productosMysql = em.createNamedQuery("ProductoMysql.getAll", ProductoMysql.class).getResultList();
+    }
+
+    private void buscarProductosAlmacenMysql() {
+        emfMysql.getCache().evictAll();
+        EntityManager em = emfMysql.createEntityManager();
+        productosAlmacenMysql = em.createNamedQuery("ProductoAlmacenMysql.getAll", ProductoAlmacenMysql.class).getResultList();
     }
 
     private void crearProductoMysql(ProductoMysql producto) {
@@ -82,8 +123,21 @@ public class TimerProductos extends TimerTask {
         try {
             em = emfMysql.createEntityManager();
             em.getTransaction().begin();
-            producto.setFechaModificacion(new Date());
             em.persist(producto);
+            em.getTransaction().commit();
+        } finally {
+            if (em != null) {
+                em.close();
+            }
+        }
+    }
+
+    private void crearProductoAlmacenMysql(ProductoAlmacenMysql productoAlmacen) {
+        EntityManager em = null;
+        try {
+            em = emfMysql.createEntityManager();
+            em.getTransaction().begin();
+            em.persist(productoAlmacen);
             em.getTransaction().commit();
         } finally {
             if (em != null) {
@@ -107,7 +161,22 @@ public class TimerProductos extends TimerTask {
         }
     }
 
-    private int findIndex(ProductoSql productoSql) {
+    private void actualizarProductoAlmacenMysql(ProductoAlmacenMysql productoAlmacen) {
+        EntityManager em = null;
+        try {
+            em = emfMysql.createEntityManager();
+            em.getTransaction().begin();
+            productoAlmacen.setFechaModificacion(new Date());
+            em.merge(productoAlmacen);
+            em.getTransaction().commit();
+        } finally {
+            if (em != null) {
+                em.close();
+            }
+        }
+    }
+
+    private int findIndexProducto(ProductoSql productoSql) {
         int index = -1;
         for (int i = 0; i < productosMysql.size(); i++) {
             if (productosMysql.get(i).getId().equals(productoSql.getId())) {
@@ -118,7 +187,18 @@ public class TimerProductos extends TimerTask {
         return index;
     }
 
-    private ProductoMysql procesarDiferencias(int indexMysql, ProductoSql productoSql) {
+    private int findIndexProductoAlmacen(ProductoAlmacenSql productoAlmacenSql) {
+        int index = -1;
+        for (int i = 0; i < productosAlmacenMysql.size(); i++) {
+            if (productosAlmacenMysql.get(i).equals(productoAlmacenSql)) {
+                index = i;
+                break;
+            }
+        }
+        return index;
+    }
+
+    private ProductoMysql procesarDiferenciasProductos(int indexMysql, ProductoSql productoSql) {
         boolean isActualizado = false;
 
         ProductoMysql productoMysql = productosMysql.get(indexMysql);
@@ -136,8 +216,26 @@ public class TimerProductos extends TimerTask {
         return isActualizado ? productoMysql : null;
     }
 
+    private ProductoAlmacenMysql procesarDiferenciasProductosAlmacen(int indexMysql, ProductoAlmacenSql productoAlmacenSql) {
+        boolean isActualizado = false;
+
+        ProductoAlmacenMysql productoAlmacenMysql = productosAlmacenMysql.get(indexMysql);
+
+        if (!productoAlmacenMysql.getExistencia().equals(productoAlmacenSql.getExistencia())) {
+            productoAlmacenMysql.setExistencia(productoAlmacenSql.getExistencia());
+            isActualizado = true;
+        }
+
+        return isActualizado ? productoAlmacenMysql : null;
+    }
+
     @Override
     public void run() {
+        sincronizarProductos();
+        sincronizarProductosAlmacen();
+    }
+
+    private void sincronizarProductos() {
         try {
             ZonedDateTime horaInicio = ZonedDateTime.now();
             ZonedDateTime horaActual = ZonedDateTime.now();
@@ -155,7 +253,7 @@ public class TimerProductos extends TimerTask {
             int indexMysql;
             for (ProductoSql productoSql : productosSql) {
                 //Buscamos el producto de SQL en la lista de productos de MySQL.
-                indexMysql = findIndex(productoSql);
+                indexMysql = findIndexProducto(productoSql);
 
                 //Si el producto no existe en MySQL entonces lo creamos.
                 if (indexMysql == -1) {
@@ -167,7 +265,7 @@ public class TimerProductos extends TimerTask {
                     logger.info("Producto insertado en MySQL, {} en {} mss.", productoMysql, Util.calcularTiempoEjecucion(horaActual));
                 } else {
                     //Si el prodcuto ya existe, revisamos si es necesario actualizarlo.
-                    productoMysql = procesarDiferencias(indexMysql, productoSql);
+                    productoMysql = procesarDiferenciasProductos(indexMysql, productoSql);
 
                     //Si no es nulo, significa que hubo diferencias, las guardamos.
                     if (productoMysql != null) {
@@ -196,6 +294,57 @@ public class TimerProductos extends TimerTask {
             logger.info("Sincronización de productos finalizada en {} mss.", Util.calcularTiempoEjecucion(horaInicio));
         } catch (Exception e) {
             logger.error("Ocurrió un error al sincronizar los productos: " + e);
+        }
+    }
+
+    private void sincronizarProductosAlmacen() {
+        try {
+            ZonedDateTime horaInicio = ZonedDateTime.now();
+            ZonedDateTime horaActual = ZonedDateTime.now();
+
+            logger.info("Iniciando sincronización de existencias.");
+
+            buscarProductosAlmacenSql();
+            logger.info("{} productosAlmacen encontrados en SQL, en {} mss.", productosAlmacenSql.size(), Util.calcularTiempoEjecucion(horaActual));
+
+            horaActual = ZonedDateTime.now();
+            buscarProductosAlmacenMysql();
+            logger.info("{} productosAlmacen encontrados en MySQL, en {} mss.", productosAlmacenMysql.size(), Util.calcularTiempoEjecucion(horaActual));
+
+            ProductoAlmacenMysql productoAlmacenMysql;
+            int indexMysql;
+            for (ProductoAlmacenSql productoAlmacenSql : productosAlmacenSql) {
+                //Buscamos el productoAlmacen de SQL en la lista de productosAlmacen de MySQL.
+                indexMysql = findIndexProductoAlmacen(productoAlmacenSql);
+
+                //Si el productoAlmacen no existe en MySQL entonces lo creamos.
+                if (indexMysql == -1) {
+                    horaActual = ZonedDateTime.now();
+
+                    productoAlmacenMysql = new ProductoAlmacenMysql(productoAlmacenSql);
+                    crearProductoAlmacenMysql(productoAlmacenMysql);
+
+                    logger.info("ProductoAlmacen insertado en MySQL, {} en {} mss.", productoAlmacenMysql, Util.calcularTiempoEjecucion(horaActual));
+                } else {
+                    //Si el prodcutoAlmacen ya existe, revisamos si es necesario actualizarlo.
+                    productoAlmacenMysql = procesarDiferenciasProductosAlmacen(indexMysql, productoAlmacenSql);
+
+                    //Si no es nulo, significa que hubo diferencias, las guardamos.
+                    if (productoAlmacenMysql != null) {
+                        horaActual = ZonedDateTime.now();
+
+                        actualizarProductoAlmacenMysql(productoAlmacenMysql);
+                        logger.info("ProductoAlmacen actualizado en MySQL, {} en {} mss.", productoAlmacenMysql, Util.calcularTiempoEjecucion(horaActual));
+                    }
+                    //Producto procesado, lo eliminamos de la lista de MySQL
+                    productosAlmacenMysql.remove(indexMysql);
+                }
+            }
+
+            //No es necesario procesar las existencias que ya no se encontraron en SQL.
+            logger.info("Sincronización de productosAlmacen finalizada en {} mss.", Util.calcularTiempoEjecucion(horaInicio));
+        } catch (Exception e) {
+            logger.error("Ocurrió un error al sincronizar los productosAlmacen: " + e);
         }
     }
 }

@@ -2,7 +2,7 @@
  * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
  * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
  */
-package mx.com.aeisa.sync.mysql.entity;
+package mx.com.aeisa.sync.entity;
 
 import java.io.Serializable;
 import java.util.Date;
@@ -12,9 +12,11 @@ import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
+import javax.persistence.NamedQuery;
 import javax.persistence.Table;
 import javax.persistence.Temporal;
 import javax.persistence.TemporalType;
+import mx.com.aeisa.sync.model.ProductoAlmacenSql;
 
 /**
  *
@@ -22,6 +24,8 @@ import javax.persistence.TemporalType;
  */
 @Entity
 @Table(name = "producto_almacen")
+@NamedQuery(name = "ProductoAlmacenMysql.getAll",
+        query = "SELECT pa FROM ProductoAlmacenMysql pa")
 public class ProductoAlmacenMysql implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -48,10 +52,10 @@ public class ProductoAlmacenMysql implements Serializable {
     public ProductoAlmacenMysql() {
     }
 
-    public ProductoAlmacenMysql(Object productoId, Object almacenId, Object existencia) {
-        this.productoId = Long.valueOf(productoId + "");
-        this.almacenId = Long.valueOf(almacenId + "");
-        this.existencia = Double.valueOf(existencia + "");
+    public ProductoAlmacenMysql(ProductoAlmacenSql productoAlmacenSql) {
+        this.productoId = productoAlmacenSql.getProductoId();
+        this.almacenId = productoAlmacenSql.getAlmacenId();
+        this.existencia = productoAlmacenSql.getExistencia();
         this.fechaModificacion = new Date();
     }
 
@@ -95,4 +99,12 @@ public class ProductoAlmacenMysql implements Serializable {
         this.fechaModificacion = fechaModificacion;
     }
 
+    @Override
+    public String toString() {
+        return "{" + "id=" + id + ", productoId=" + productoId + ", almacenId=" + almacenId + ", existencia=" + existencia + ", fechaModificacion=" + fechaModificacion + '}';
+    }
+
+    public boolean equals(ProductoAlmacenSql productoAlmacenSql) {
+        return productoId.equals(productoAlmacenSql.getProductoId()) && almacenId.equals(productoAlmacenSql.getAlmacenId());
+    }
 }

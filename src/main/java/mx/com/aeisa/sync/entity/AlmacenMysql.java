@@ -1,4 +1,4 @@
-package mx.com.aeisa.sync.mysql.entity;
+package mx.com.aeisa.sync.entity;
 
 import java.io.Serializable;
 import java.util.Date;
@@ -9,7 +9,6 @@ import javax.persistence.NamedQuery;
 import javax.persistence.Table;
 import javax.persistence.Temporal;
 import javax.persistence.TemporalType;
-import mx.com.aeisa.sync.sql.entity.AlmacenSql;
 
 /**
  * A AlmacenSql.

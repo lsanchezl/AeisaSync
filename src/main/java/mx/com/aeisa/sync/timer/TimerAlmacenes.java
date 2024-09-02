@@ -11,8 +11,8 @@ import java.util.TimerTask;
 import javax.persistence.EntityManager;
 import javax.persistence.EntityManagerFactory;
 import mx.com.aeisa.sync.Util;
-import mx.com.aeisa.sync.mysql.entity.AlmacenMysql;
-import mx.com.aeisa.sync.sql.entity.AlmacenSql;
+import mx.com.aeisa.sync.entity.AlmacenMysql;
+import mx.com.aeisa.sync.entity.AlmacenSql;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.LogManager;
 
@@ -82,7 +82,6 @@ public class TimerAlmacenes extends TimerTask {
         try {
             em = emfMysql.createEntityManager();
             em.getTransaction().begin();
-            almacen.setFechaModificacion(new Date());
             em.persist(almacen);
             em.getTransaction().commit();
         } finally {
