@@ -1,4 +1,4 @@
-package mx.com.aeisa.syn.sql.entity;
+package mx.com.aeisa.sync.sql.entity;
 
 import java.io.Serializable;
 import javax.persistence.Column;
@@ -8,14 +8,14 @@ import javax.persistence.NamedQuery;
 import javax.persistence.Table;
 
 /**
- * A Producto.
+ * A ProductoSql.
  */
 @Entity
 @Table(catalog = "adaeisa_comercial_2022", schema = "dbo", name = "admproductos")
-@NamedQuery(name = "Producto.getActivos",
-        query = "SELECT p FROM Producto p where p.estatus = 1")
+@NamedQuery(name = "ProductoSql.getAll",
+        query = "SELECT p FROM ProductoSql p WHERE p.estatus = 1 AND p.id > 0")
 @SuppressWarnings("common-java:DuplicatedBlocks")
-public class Producto implements Serializable {
+public class ProductoSql implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
@@ -32,7 +32,7 @@ public class Producto implements Serializable {
     @Column(name = "cstatusproducto")
     private Integer estatus;
 
-    public Producto() {
+    public ProductoSql() {
     }
 
     public Long getId() {

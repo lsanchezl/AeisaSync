@@ -4,20 +4,49 @@
  */
 package mx.com.aeisa.sync.timer;
 
+import java.time.Duration;
+import java.time.ZonedDateTime;
 import java.util.Date;
 import java.util.List;
+import java.util.Properties;
 import java.util.TimerTask;
 import javax.persistence.EntityManager;
 import javax.persistence.EntityManagerFactory;
 import javax.persistence.Persistence;
-import mx.com.aeisa.syn.mysql.entity.AlmacenMysql;
-import mx.com.aeisa.syn.sql.entity.AlmacenSql;
+import mx.com.aeisa.sync.Util;
+import mx.com.aeisa.sync.mysql.entity.AlmacenMysql;
+import mx.com.aeisa.sync.sql.entity.AlmacenSql;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
 
 /**
  *
  * @author lasla
  */
 public class TimerAlmacenes extends TimerTask {
+
+    /*
+    INSERT INTO [dbo].[admAlmacenes]
+           ([CIDALMACEN]
+           ,[CCODIGOALMACEN]
+           ,[CNOMBREALMACEN]
+           ,[CTEXTOEXTRA1]
+		   )
+     VALUES
+           (60
+           ,'Código 60'
+           ,'Almacen 60'
+           ,'SIGLAS-60'
+		   );
+
+    update admAlmacenes set CCODIGOALMACEN = 'Código 527' where CIDALMACEN = 52;
+    update admAlmacenes set CNOMBREALMACEN = 'Almacen 547' where CIDALMACEN = 53;
+    update admAlmacenes set CTEXTOEXTRA1 = 'SIGLAS-547' where CIDALMACEN = 54;
+    update admAlmacenes set CCODIGOALMACEN = 'Código 557',CNOMBREALMACEN = 'Almacen 557', CTEXTOEXTRA1 = 'SIGLAS-557' where CIDALMACEN = 55;
+    delete from admAlmacenes where CIDALMACEN > 55;
+
+     */
+    private static final Logger logger = LogManager.getLogger(TimerAlmacenes.class);
 
     private static TimerAlmacenes instance;
 
@@ -27,28 +56,34 @@ public class TimerAlmacenes extends TimerTask {
     private List<AlmacenSql> almacenesSql;
     private List<AlmacenMysql> almacenesMysql;
 
-    private TimerAlmacenes() {
-        emfSql = Persistence.createEntityManagerFactory("MSSQL-PU");
-        emfMysql = Persistence.createEntityManagerFactory("MySQL-PU");
+    private TimerAlmacenes(String passwordSql, String passwordMySql) {
+        emfSql = Util.getEntityManagerFactorySql(passwordSql);
+        emfMysql = Util.getEntityManagerFactoryMySql(passwordMySql);
     }
 
-    public static TimerAlmacenes getInstance() {
+    public static TimerAlmacenes getInstance(String passwordSql, String passwordMySql) {
         if (instance == null) {
-            instance = new TimerAlmacenes();
+            instance = new TimerAlmacenes(passwordSql, passwordMySql);
         }
         return instance;
     }
 
-    private List<AlmacenSql> buscarAlmacenesSql() {
-        emfSql.getCache().evictAll();
-        EntityManager em = emfSql.createEntityManager();
-        return em.createNamedQuery("AlmacenSql.getAll", AlmacenSql.class).getResultList();
+    private long calcularTiempoEjecucion(ZonedDateTime inicio) {
+        ZonedDateTime fin = ZonedDateTime.now();
+        Duration duration = Duration.between(inicio, fin);
+        return duration.toMillis();
     }
 
-    private List<AlmacenMysql> buscarAlmacenesMysql() {
+    private void buscarAlmacenesSql() {
+        emfSql.getCache().evictAll();
+        EntityManager em = emfSql.createEntityManager();
+        almacenesSql = em.createNamedQuery("AlmacenSql.getAll", AlmacenSql.class).getResultList();
+    }
+
+    private void buscarAlmacenesMysql() {
         emfMysql.getCache().evictAll();
         EntityManager em = emfMysql.createEntityManager();
-        return em.createNamedQuery("AlmacenMysql.getAll", AlmacenMysql.class).getResultList();
+        almacenesMysql = em.createNamedQuery("AlmacenMysql.getAll", AlmacenMysql.class).getResultList();
     }
 
     private void crearAlmacenMysql(AlmacenMysql almacen) {
@@ -56,6 +91,7 @@ public class TimerAlmacenes extends TimerTask {
         try {
             em = emfMysql.createEntityManager();
             em.getTransaction().begin();
+            almacen.setFechaModificacion(new Date());
             em.persist(almacen);
             em.getTransaction().commit();
         } finally {
@@ -70,6 +106,7 @@ public class TimerAlmacenes extends TimerTask {
         try {
             em = emfMysql.createEntityManager();
             em.getTransaction().begin();
+            almacen.setFechaModificacion(new Date());
             em.merge(almacen);
             em.getTransaction().commit();
         } finally {
@@ -115,10 +152,16 @@ public class TimerAlmacenes extends TimerTask {
 
     @Override
     public void run() {
-        System.out.println("Iniciando sincronización de almacenes: " + new Date());
+        ZonedDateTime horaInicio = ZonedDateTime.now();
+        logger.info("Iniciando sincronización de almacenes.");
 
-        almacenesSql = buscarAlmacenesSql();
-        almacenesMysql = buscarAlmacenesMysql();
+        ZonedDateTime horaActual = ZonedDateTime.now();
+        buscarAlmacenesSql();
+        logger.info("{} almacenes encontrados en SQL, en {} mss.", almacenesSql.size(), calcularTiempoEjecucion(horaActual));
+
+        horaActual = ZonedDateTime.now();
+        buscarAlmacenesMysql();
+        logger.info("{} almacenes encontrados en MySQL, en {} mss.", almacenesMysql.size(), calcularTiempoEjecucion(horaActual));
 
         AlmacenMysql almacenMysql;
         int indexMysql;
@@ -128,14 +171,22 @@ public class TimerAlmacenes extends TimerTask {
 
             //Si el almacén no existe en MySQL entonces lo creamos.
             if (indexMysql == -1) {
-                crearAlmacenMysql(new AlmacenMysql(almacenSql));
+                horaActual = ZonedDateTime.now();
+
+                almacenMysql = new AlmacenMysql(almacenSql);
+                crearAlmacenMysql(almacenMysql);
+
+                logger.info("Almacén insertado en MySQL, {} en {} mss.", almacenMysql, calcularTiempoEjecucion(horaActual));
             } else {
                 //Si el almacén ya existe, revisamos si es necesario actualizarlo.
                 almacenMysql = procesarDiferencias(indexMysql, almacenSql);
 
                 //Si no es nulo, significa que hubo diferencias, las guardamos.
                 if (almacenMysql != null) {
+                    horaActual = ZonedDateTime.now();
+
                     actualizarAlmacenMysql(almacenMysql);
+                    logger.info("Almacén actualizado en MySQL, {} en {} mss.", almacenMysql, calcularTiempoEjecucion(horaActual));
                 }
                 // almacen procesado, lo eliminamos de la lista de MySQL
                 almacenesMysql.remove(indexMysql);
@@ -144,11 +195,18 @@ public class TimerAlmacenes extends TimerTask {
 
         // Si hay elementos en la lista de almacenes MySQL, significa que no se encontraron en SQL, ya no existen, los desactivamos.
         for (AlmacenMysql almacen : almacenesMysql) {
-            almacen.setActivo(Boolean.FALSE);
-            actualizarAlmacenMysql(almacen);
+            if (almacen.getActivo()) {
+                horaActual = ZonedDateTime.now();
+
+                almacen.setActivo(Boolean.FALSE);
+                actualizarAlmacenMysql(almacen);
+
+                logger.info("Almacén desactivado en MySQL, {} en {} mss.", almacen, calcularTiempoEjecucion(horaActual));
+            }
         }
 
-        System.out.println("Finalizando sincronización de almacenes: " + new Date());
+        logger.info("Sincronización de almacenes finalizada en {} mss.", calcularTiempoEjecucion(horaInicio));
+        logger.info("--------------------------------------------------------------------------------------------------");
     }
 
 }

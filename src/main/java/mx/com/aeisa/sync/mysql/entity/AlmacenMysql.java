@@ -1,4 +1,4 @@
-package mx.com.aeisa.syn.mysql.entity;
+package mx.com.aeisa.sync.mysql.entity;
 
 import java.io.Serializable;
 import java.util.Date;
@@ -9,7 +9,7 @@ import javax.persistence.NamedQuery;
 import javax.persistence.Table;
 import javax.persistence.Temporal;
 import javax.persistence.TemporalType;
-import mx.com.aeisa.syn.sql.entity.AlmacenSql;
+import mx.com.aeisa.sync.sql.entity.AlmacenSql;
 
 /**
  * A AlmacenSql.
@@ -101,6 +101,12 @@ public class AlmacenMysql implements Serializable {
 
     public void setFechaModificacion(Date fechaModificacion) {
         this.fechaModificacion = fechaModificacion;
+    }
+
+    @Override
+    public String toString() {
+        return "AlmacenMysql{" + "id=" + id + ", codigo=" + codigo + ", nombre=" + nombre + ", siglas=" + siglas
+                + ", activo=" + activo + ", fechaModificacion=" + fechaModificacion + '}';
     }
 
 }
