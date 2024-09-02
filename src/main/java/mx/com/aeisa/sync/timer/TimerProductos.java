@@ -47,6 +47,7 @@ public class TimerProductos extends TimerTask {
     update admAlmacenes set CCODIGOALMACEN = 'Código 557',CNOMBREALMACEN = 'Almacen 557', CTEXTOEXTRA1 = 'SIGLAS-557' where CIDALMACEN = 55;
     delete from admAlmacenes where CIDALMACEN > 55;
 
+    update admexistenciacosto set centradasperiodo6 = centradasperiodo6 + 1 where CIDEJERCICIO = 14;
      */
     private static final Logger logger = LogManager.getLogger(TimerProductos.class);
 
@@ -342,7 +343,7 @@ public class TimerProductos extends TimerTask {
             }
 
             //No es necesario procesar las existencias que ya no se encontraron en SQL.
-            logger.info("Sincronización de productosAlmacen finalizada en {} mss.", Util.calcularTiempoEjecucion(horaInicio));
+            logger.info("Sincronización de existencias finalizada en {} mss.", Util.calcularTiempoEjecucion(horaInicio));
         } catch (Exception e) {
             logger.error("Ocurrió un error al sincronizar los productosAlmacen: " + e);
         }

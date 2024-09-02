@@ -14,6 +14,8 @@ import mx.com.aeisa.sync.timer.TimerProductos;
 public class AeisaSync {
 
     public static void main(String[] args) {
+        //Password SQL, Password MySQL
+        args = new String[]{"aeisa.123", "adminadmin"};
 
         TimerAlmacenes timerAlmacenes = TimerAlmacenes.getInstance(args[0], args[1]);
         TimerProductos timerProductos = TimerProductos.getInstance(args[0], args[1]);
