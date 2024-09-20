@@ -30,9 +30,15 @@ public class Util {
 
     public static EntityManagerFactory getEntityManagerFactoryMySql(String password) {
         Properties properties = new Properties();
-        properties.put("javax.persistence.jdbc.url", "jdbc:mysql://localhost:3306/acope?zeroDateTimeBehavior=CONVERT_TO_NULL");
+//        properties.put("javax.persistence.jdbc.url", "jdbc:mysql://localhost:3306/acope?zeroDateTimeBehavior=CONVERT_TO_NULL");
+//        properties.put("javax.persistence.transactionType", "RESOURCE_LOCAL");
+//        properties.put("javax.persistence.jdbc.user", "root");
+//        properties.put("javax.persistence.jdbc.driver", "com.mysql.cj.jdbc.Driver");
+////        properties.put("javax.persistence.jdbc.password", "adminadmin");
+//        properties.put("javax.persistence.jdbc.password", password);
+        properties.put("javax.persistence.jdbc.url", "jdbc:mysql://naucara-mysql.cpeyc24yu1bq.us-east-1.rds.amazonaws.com:3306/aeisa_dev?useUnicode=true&characterEncoding=utf8&useSSL=false&useLegacyDatetimeCode=false&serverTimezone=America/Mexico_City");
         properties.put("javax.persistence.transactionType", "RESOURCE_LOCAL");
-        properties.put("javax.persistence.jdbc.user", "root");
+        properties.put("javax.persistence.jdbc.user", "naucara_admin");
         properties.put("javax.persistence.jdbc.driver", "com.mysql.cj.jdbc.Driver");
 //        properties.put("javax.persistence.jdbc.password", "adminadmin");
         properties.put("javax.persistence.jdbc.password", password);
